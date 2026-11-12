@@ -1,0 +1,30 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24, 26]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm run check
+      - run: npm test
+      - name: Check distribution contents
+        run: |
+          mkdir -p "$RUNNER_TEMP/media-adapter-pack"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/media-adapter-pack"
+          for archive in "$RUNNER_TEMP/media-adapter-pack/"*.tgz; do
+            tar -tzf "$archive"
+          done

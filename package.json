@@ -1,0 +1,42 @@
+{
+  "name": "magpie-media-adapter",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Normalize media across Magpie models with automatic format profiles and optional overrides",
+  "type": "module",
+  "scripts": {
+    "test": "node --test media.test.mjs",
+    "check": "node --check media.middleware.js"
+  },
+  "magpie": {
+    "name": "Magpie Media Adapter",
+    "middleware": "./media.middleware.js"
+  },
+  "files": [
+    "media.middleware.js",
+    "README.md",
+    "README.zh-CN.md",
+    "INSTALL.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/double2tea/magpie-media-adapter.git"
+  },
+  "homepage": "https://github.com/double2tea/magpie-media-adapter#readme",
+  "bugs": {
+    "url": "https://github.com/double2tea/magpie-media-adapter/issues"
+  },
+  "keywords": [
+    "magpie-plugin",
+    "magpie",
+    "middleware",
+    "multimodal",
+    "audio",
+    "video"
+  ]
+}

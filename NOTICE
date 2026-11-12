@@ -1,0 +1,13 @@
+Magpie Media Adapter
+Copyright 2026 Magpie Media Adapter contributors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This independent community plugin implements the gateway middleware interface
+provided by Magpie: https://github.com/yetone/magpie
+
+Magpie and the referenced model/provider names belong to their respective owners.
+They identify compatibility and do not imply endorsement.
+
+No provider SDK, upstream Magpie source bundle, model weights or brand artwork
+is included in this package.
