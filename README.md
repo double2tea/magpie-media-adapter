@@ -4,7 +4,7 @@
 
 A standalone gateway middleware for [Magpie](https://github.com/yetone/magpie) that normalizes audio and video attachments for the selected model. Keep using your existing model or routing group. No MCP tool, additional server, provider key or runtime dependency is required.
 
-**Version:** 0.2.0 · **License:** Apache-2.0
+**Version:** 0.2.1 · **License:** Apache-2.0
 
 ## What it does
 
@@ -87,7 +87,7 @@ Use the exact installed plugin spec from `magpie plugin list` for local-path ins
 
 ## Verified scope and limits
 
-- 33 regression tests cover non-throwing `ctx.reject`, candidate-independent byte preservation, renamed providers, arbitrary group names, MIME aliases/conflicts, URLs, history, tool results, scope selection and unchanged reasoning settings.
+- 35 regression tests cover non-throwing `ctx.reject`, candidate-independent byte preservation, renamed providers, arbitrary group names, MIME aliases/conflicts, URLs, history, tool results, scope selection and unchanged reasoning settings.
 - Live checks covered direct and grouped requests on two Macs. One MiMo response omitted the full transcript, and a targeted follow-up transcribed correctly but extracted the wrong numeric code. Media delivery does not guarantee semantic accuracy.
 - GPT Audio, arbitrary relays and remote-file behavior have structural test coverage; they were not all exercised against paid live services.
 - A 5.76 MB request exercised the native rejection path. This does not certify all attachment sizes or long histories.
@@ -111,3 +111,5 @@ No dependency installation or real API credentials are needed for the tests. The
 The middleware runs inside the gateway and receives request bodies. It does not log prompts, write files, access credentials or make network requests. Magpie still sends media to the provider you selected, under that provider's billing and data policies.
 
 See [SECURITY.md](SECURITY.md) for safe reporting. This is an independent community plugin; Magpie and model names identify compatibility and do not imply endorsement.
+
+See [Client and workload checks](COMPATIBILITY.md) for actual client capture results, stress-test boundaries and the unchanged-body fast path.

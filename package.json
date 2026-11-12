@@ -1,6 +1,6 @@
 {
   "name": "magpie-media-adapter",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Normalize media across Magpie models with automatic format profiles and optional overrides",
   "type": "module",
@@ -20,7 +20,8 @@
     "CHANGELOG.md",
     "SECURITY.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "COMPATIBILITY.md"
   ],
   "license": "Apache-2.0",
   "repository": {

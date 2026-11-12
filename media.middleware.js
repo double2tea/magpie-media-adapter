@@ -78,18 +78,35 @@ function readMedia(part) {
 
 function mapContent(content, visit) {
   if (!Array.isArray(content)) return content;
-  return content.map(part => {
-    if (part?.type === 'tool_result' && Array.isArray(part.content)) return { ...part, content: mapContent(part.content, visit) };
-    return visit(part);
-  });
+  let updated;
+  for (let index = 0; index < content.length; index++) {
+    const part = content[index];
+    let result;
+    if (part?.type === 'tool_result' && Array.isArray(part.content)) {
+      const nested = mapContent(part.content, visit);
+      result = nested === part.content ? part : { ...part, content: nested };
+    } else {
+      result = visit(part);
+    }
+    if (result !== part && !updated) updated = content.slice();
+    if (updated) updated[index] = result;
+  }
+  return updated || content;
 }
 
 function mapTurns(turns, visit) {
   if (!Array.isArray(turns)) return turns;
-  return turns.map(turn => {
-    if (!turn || typeof turn !== 'object') return turn;
-    return { ...turn, content: mapContent(turn.content, visit) };
-  });
+  let updated;
+  for (let index = 0; index < turns.length; index++) {
+    const turn = turns[index];
+    if (!turn || typeof turn !== 'object') continue;
+    const content = mapContent(turn.content, visit);
+    if (content !== turn.content) {
+      updated ||= turns.slice();
+      updated[index] = { ...turn, content };
+    }
+  }
+  return updated || turns;
 }
 
 function modelProfile(model, override = {}) {
@@ -153,7 +170,7 @@ export function onRequest(body, ctx) {
       const needsStreaming = id.startsWith('group/') || requestedProfile.streamingRequired !== false;
       if (policy === 'reject' || (policy === 'auto' && needsStreaming)) throw new MediaError('Audio on this route requires stream=true; non-streaming candidate translation cannot be guaranteed');
     }
-    return { ...body, [key]: messages };
+    return messages === body[key] ? undefined : { ...body, [key]: messages };
   } catch (error) {
     if (!(error instanceof MediaError)) throw error;
     ctx.reject(400, 'Magpie Media Adapter: ' + error.message);
@@ -175,7 +192,9 @@ export function onProvider(body, ctx) {
     return encode(part, media, profile);
   });
   // onProvider cannot reject. All intentional validation/rejection happens in onRequest.
+  const needsTextOutput = hasAudio && profile.textOnly && body.modalities === undefined;
+  if (messages === body.messages && !needsTextOutput) return;
   const result = { ...body, messages };
-  if (hasAudio && profile.textOnly && body.modalities === undefined) result.modalities = ['text'];
+  if (needsTextOutput) result.modalities = ['text'];
   return result;
 }

@@ -1,15 +1,12 @@
-# v0.2.0 — Magpie Media Adapter
+# v0.2.1 — Preserve unchanged requests
 
-First public release of a standalone Magpie gateway middleware for audio/video attachment compatibility.
+- Keep original request bodies when no media conversion is needed, allowing Magpie to avoid unnecessary serialization.
+- Copy only edited media branches, including nested tool results, without mutating input shared by fallback attempts.
+- Document real Codex, Grok and OpenCode image-request captures and their observed audio-input limitations.
+- Document native gateway rejection-path tests up to 24 MiB and with 400 history turns.
 
-- Keep using existing models and routing groups; no MCP tool or additional service is required.
-- Normalize Chat video files and encode audio for each actual candidate model.
-- Recognize common Qwen Omni, Gemini, MiMo and GPT Audio formats; support private aliases with optional profiles.
-- Preserve media bytes, explicit output settings, reasoning options and supported video metadata.
-- Reject known unsupported audio paths with actionable errors.
+Validation: 35 regression tests pass; independent review found no defect in the optimization. Real direct/group media checks ran on two Macs. Model semantics remain imperfect: one video answer invented an extra color, and one MiMo response omitted the requested full transcript. These are recorded rather than counted as complete semantic passes.
 
-Validation: 33 local regression tests pass, including the reviewed edge cases. Direct/grouped media requests were exercised on two macOS Magpie gateways. Model output can still omit or mis-extract information even when media is delivered correctly. The repository CI covers Node.js 22, 24 and 26. Hosted results are checked before release publication.
+Model profiles, routing priorities, reasoning settings and existing protocol boundaries remain unchanged. This is not a fix for upstream capability-catalog filtering or Responses/Anthropic audio-document conversion. Pressure checks do not certify sustained concurrency or arbitrary attachment sizes.
 
-Known boundaries: Responses/Anthropic audio-document conversion, uncertain non-streaming audio routes, synchronous remote-audio handling, gateway hook time limits and upstream capability-catalog filtering. See the README before using a new provider profile.
-
-License: Apache-2.0. Independent community plugin; no vendor endorsement is implied.
+License: Apache-2.0.

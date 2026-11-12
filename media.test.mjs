@@ -16,6 +16,12 @@ function context({ model = 'group/any-name', protocol = 'chat', options = {}, pr
   return ctx;
 }
 function first(body) { return body.messages[0].content[0]; }
+function applyRequest(body, ctx) {
+  const result = onRequest(body, ctx);
+  if (ctx.rejected.length) throw new Error('Unexpected request rejection');
+  return result ?? body;
+}
+function applyProvider(body, ctx) { return onProvider(body, ctx) ?? body; }
 function reject(part, pattern, extra = {}) {
   const ctx = context();
   assert.equal(onRequest(request(part, extra), ctx), undefined);
@@ -26,20 +32,20 @@ function reject(part, pattern, extra = {}) {
 test('zero configuration adapts any model/group and does not hardcode provider IDs', () => {
   const body = request(file(), { model: 'company/rebranded' });
   const ctx = context({ model: body.model });
-  const result = onProvider(onRequest(body, ctx), ctx);
+  const result = applyProvider(applyRequest(body, ctx), ctx);
   assert.equal(first(result).input_audio.data, wav);
   assert.deepEqual(result.modalities, ['text']);
 });
 test('Gemini format follows candidate model even when provider is renamed', () => {
   const body = request();
   const ctx = context({ provider: { id: 'my-native', model: 'gemini-3.8-flash' } });
-  const result = onProvider(onRequest(body, ctx), ctx);
+  const result = applyProvider(applyRequest(body, ctx), ctx);
   assert.equal(first(result).file.file_data, wav);
 });
 test('unknown audio models preserve original format', () => {
   const body = request();
   const ctx = context({ provider: { id: 'unknown', model: 'new-model' } });
-  assert.deepEqual(onProvider(onRequest(body, ctx), ctx), body);
+  assert.deepEqual(applyProvider(applyRequest(body, ctx), ctx), body);
 });
 test('selection applies consistently to both hooks, empty selection disables adaptation', () => {
   for (const models of [[], ['group/another']]) {
@@ -61,13 +67,13 @@ test('video files normalized before route selection with bytes preserved', () =>
 test('images and PDFs preserve all metadata', () => {
   for (const part of [{ type: 'image_url', image_url: { url: 'https://example.com/img', detail: 'high' } }, { type: 'file', file: { filename: 'x.pdf', file_data: 'data:application/pdf;base64,YWJj' } }]) {
     const body = request(part);
-    assert.deepEqual(onRequest(body, context()), body);
-    assert.deepEqual(onProvider(body, context()), body);
+    assert.deepEqual(applyRequest(body, context()), body);
+    assert.deepEqual(applyProvider(body, context()), body);
   }
 });
 test('video hints survive normalization and repeated provider attempts', () => {
   const body = request({ type: 'video_url', video_url: { url: mp4, fps: 2 } });
-  assert.deepEqual(onProvider(onRequest(body, context()), context()), body);
+  assert.deepEqual(applyProvider(applyRequest(body, context()), context()), body);
 });
 test('history audio and tool result audio count toward stream requirement', () => {
   const body = request(file(), { stream: false });
@@ -84,7 +90,7 @@ test('direct Xiaomi nonstream audio is accepted without changing thinking', () =
   const model = 'custom/mimo-v2.6-flash';
   const body = request(file(), { model, stream: false, thinking: { type: 'enabled' } });
   const ctx = context({ model, provider: { id: 'custom', model: 'mimo-v2.6-flash' } });
-  const result = onProvider(onRequest(body, ctx), ctx);
+  const result = applyProvider(applyRequest(body, ctx), ctx);
   assert.equal(first(result).input_audio.data, wav);
   assert.deepEqual(result.thinking, body.thinking);
   assert.deepEqual(ctx.rejected, []);
@@ -97,13 +103,13 @@ test('direct Qwen nonstream audio rejects based on model rather than vendor ID',
 });
 test('explicit nonstream pass supports tested custom group', () => {
   const ctx = context({ options: { nonStreamingAudio: 'pass' } });
-  assert.ok(onRequest(request(file(), { stream: false }), ctx));
+  assert.ok(applyRequest(request(file(), { stream: false }), ctx));
   assert.deepEqual(ctx.rejected, []);
 });
 test('direct Gemini nonstream audio remains available', () => {
   const model = 'native/gemini-3.8-flash';
   const ctx = context({ model, provider: { id: 'native', model: 'gemini-3.8-flash' } });
-  assert.ok(onRequest(request(file(), { model, stream: false }), ctx));
+  assert.ok(applyRequest(request(file(), { model, stream: false }), ctx));
   assert.deepEqual(ctx.rejected, []);
 });
 test('Responses audio rejects but its video is preserved for gateway support', () => {
@@ -112,7 +118,7 @@ test('Responses audio rejects but its video is preserved for gateway support', (
     const body = { model: ctx.model, input: [{ role: 'user', content: [{ type: 'input_file', filename, file_data: value }] }] };
     const result = onRequest(body, ctx);
     assert.equal(ctx.rejected.length > 0, rejected);
-    if (!rejected) assert.deepEqual(result, body);
+    if (!rejected) assert.deepEqual(result ?? body, body);
   }
 });
 test('Anthropic nested audio rejects, video and PDF documents are preserved', () => {
@@ -121,7 +127,7 @@ test('Anthropic nested audio rejects, video and PDF documents are preserved', ()
     const ctx = context({ protocol: 'anthropic' });
     const result = onRequest(body, ctx);
     assert.equal(ctx.rejected.length > 0, type === 'audio/wav');
-    if (type !== 'audio/wav') assert.deepEqual(result, body);
+    if (type !== 'audio/wav') assert.deepEqual(result ?? body, body);
     assert.equal(onProvider(body, ctx), undefined);
   }
 });
@@ -147,27 +153,27 @@ test('audio MIME aliases and bare Base64 retain correct format', () => {
     [{ type: 'input_audio', input_audio: { data: 'YWJj', format: 'wav' } }, 'wav', wav],
     [file('YWJj', 'clip.flac'), 'flac', 'data:audio/flac;base64,YWJj'],
   ]) {
-    const result = first(onProvider(onRequest(request(part), ctx), ctx));
+    const result = first(applyProvider(applyRequest(request(part), ctx), ctx));
     assert.equal(result.input_audio.format, format);
     assert.equal(result.input_audio.data, expected);
   }
 });
 test('opaque file IDs are not interpreted as missing bytes', () => {
   const body = request({ type: 'file', file: { file_id: 'opaque', filename: 'clip.wav' } });
-  assert.deepEqual(onRequest(body, context()), body);
+  assert.deepEqual(applyRequest(body, context()), body);
 });
 test('URL attachments remain URLs when converted to Gemini file', () => {
   const model = 'native/gemini-3.8-flash';
   const ctx = context({ model, provider: { id: 'renamed', model: 'gemini-3.8-flash' } });
   const body = request({ type: 'input_audio', input_audio: { format: 'wav', data: 'https://example.com/clip.wav' } }, { model });
-  const result = first(onProvider(onRequest(body, ctx), ctx));
+  const result = first(applyProvider(applyRequest(body, ctx), ctx));
   assert.equal(result.file.file_url, 'https://example.com/clip.wav');
   assert.equal(result.file.file_data, undefined);
 });
 test('Qwen then Gemini then Xiaomi attempts independently preserve the original bytes', () => {
   const body = request(file());
   const initial = JSON.stringify(body);
-  const prepared = onRequest(body, context());
+  const prepared = applyRequest(body, context());
   for (const model of ['qwen3.8-omni-flash', 'gemini-3.8-flash', 'mimo-v2.6-flash']) {
     const ctx = context({ provider: { id: 'vendor-alias', model } });
     const part = first(onProvider(prepared, ctx));
@@ -205,11 +211,11 @@ test('invalid config rejects at the request boundary with non-throwing ctx.rejec
 });
 test('history text and tools are preserved, no media response options added', () => {
   const body = request({ type: 'text', text: 'hello' }, { tools: [{ type: 'function', function: { name: 'run' } }] });
-  assert.deepEqual(onProvider(onRequest(body, context()), context()), body);
+  assert.deepEqual(applyProvider(applyRequest(body, context()), context()), body);
 });
 test('remote video without suffix keeps URL and sampling hints', () => {
   const body = request({ type: 'video_url', video_url: { url: 'https://example.com/download?id=123', fps: 1 } });
-  assert.deepEqual(onRequest(body, context()), body);
+  assert.deepEqual(applyRequest(body, context()), body);
 });
 test('remote audio rejects before an unknown/group or data-URI-only route', () => {
   const part = { type: 'file', file: { filename: 'a.wav', file_url: 'https://example.com/a.wav' } };
@@ -240,4 +246,22 @@ test('configured file conversion cannot silently discard video sampling options'
   const body = request({ type: 'video_url', video_url: { url: mp4, fps: 2, detail: 'high' } });
   assert.equal(onRequest(body, ctx), undefined);
   assert.match(ctx.rejected[0].message, /fps\/detail/);
+});
+test('text-only long histories return no replacement body', () => {
+  const body = { model: 'ordinary/model', stream: true, messages: Array.from({length: 4000}, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: [{ type: 'text', text: 'unchanged' }] })) };
+  const ctx = context({model: body.model});
+  assert.equal(onRequest(body, ctx), undefined);
+  assert.equal(onProvider(body, ctx), undefined);
+});
+test('sparse media changes copy only affected branches', () => {
+  const untouched = { role: 'assistant', content: [{ type: 'text', text: 'keep' }] };
+  const toolText = { type: 'tool_result', content: [{type:'text',text:'unchanged tool'}] };
+  const toolVideo = { type: 'tool_result', content: [file(mp4, 'clip.mp4')] };
+  const body = request(file()); body.messages = [untouched, {role:'user', content:[toolText, toolVideo]}];
+  const result = onRequest(body, context());
+  assert.equal(result.messages[0], untouched);
+  assert.equal(result.messages[1].content[0], toolText);
+  assert.notEqual(result.messages[1].content[1], toolVideo);
+  assert.equal(toolVideo.content[0].type, 'file');
+  assert.equal(result.messages[1].content[1].content[0].type, 'video_url');
 });
